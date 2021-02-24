@@ -23,7 +23,7 @@ from __future__ import print_function
 
 import time as _time
 import datetime as _datetime
-import requests as _requests
+
 import pandas as _pd
 import numpy as _np
 
@@ -40,6 +40,20 @@ from . import utils
 
 from . import shared
 
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from seleniumrequests import Chrome
+
+# instantiate a chrome options object so you can set the size and headless preference
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--window-size=1920x1080")
+# chrome_driver = '/usr/lib64/chromium-browser/chromedriver'
+chrome_driver = '/usr/local/bin/chromedriver'
+
+# driver = webdriver.Chrome(chrome_options=chrome_options, executable_path=chrome_driver)
+driver = Chrome(chrome_options=chrome_options, executable_path=chrome_driver)
+
 
 class TickerBase():
     def __init__(self, ticker):
@@ -47,6 +61,7 @@ class TickerBase():
         self._history = None
         self._base_url = 'https://query1.finance.yahoo.com'
         self._scrape_url = 'https://finance.yahoo.com/quote'
+        self._headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.0; WOW64; rv:24.0) Gecko/20100101 Firefox/24.0'}
 
         self._fundamentals = False
         self._info = None
@@ -148,7 +163,8 @@ class TickerBase():
 
         # Getting data from json
         url = "{}/v8/finance/chart/{}".format(self._base_url, self.ticker)
-        data = _requests.get(url=url, params=params, proxies=proxy)
+        # data = _requests.get(url=url, params=params, proxies=proxy)
+        data = driver.request('GET', url, params=params, proxies=proxy)
         if "Will be right back" in data.text:
             raise RuntimeError("*** YAHOO! FINANCE IS CURRENTLY DOWN! ***\n"
                                "Our engineers are working quickly to resolve "
@@ -530,7 +546,8 @@ class TickerBase():
         url = 'https://markets.businessinsider.com/ajax/' \
               'SearchController_Suggest?max_results=25&query=%s' \
             % urlencode(q)
-        data = _requests.get(url=url, proxies=proxy).text
+        # data = _requests.get(url=url, proxies=proxy).text
+        data = driver.request('GET', url, proxies=proxy).text
 
         search_str = '"{}|'.format(ticker)
         if search_str not in data:
