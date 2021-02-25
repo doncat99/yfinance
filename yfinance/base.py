@@ -169,7 +169,12 @@ class TickerBase():
             raise RuntimeError("*** YAHOO! FINANCE IS CURRENTLY DOWN! ***\n"
                                "Our engineers are working quickly to resolve "
                                "the issue. Thank you for your patience.")
-        data = data.json()
+        try:
+            data = data.json()
+        except Exception as e:
+            print(e)
+            shared._DFS[self.ticker] = utils.empty_df()
+            return shared._DFS[self.ticker]
 
         # Work with errors
         debug_mode = True
