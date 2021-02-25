@@ -26,11 +26,17 @@ import datetime as _datetime
 
 import pandas as _pd
 import numpy as _np
+import re as _re
 
 try:
     from urllib.parse import quote as urlencode
 except ImportError:
     from urllib import quote as urlencode
+
+try:
+    import ujson as _json
+except ImportError:
+    import json as _json
 
 from . import utils
 
@@ -40,7 +46,7 @@ from . import utils
 
 from . import shared
 
-from selenium import webdriver
+# from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from seleniumrequests import Chrome
 
@@ -169,17 +175,19 @@ class TickerBase():
             raise RuntimeError("*** YAHOO! FINANCE IS CURRENTLY DOWN! ***\n"
                                "Our engineers are working quickly to resolve "
                                "the issue. Thank you for your patience.")
-        try:
-            data = data.json()
-        except Exception as e:
-            print(e)
-            shared._DFS[self.ticker] = utils.empty_df()
-            return shared._DFS[self.ticker]
 
         # Work with errors
         debug_mode = True
         if "debug" in kwargs and isinstance(kwargs["debug"], bool):
             debug_mode = kwargs["debug"]
+
+        try:
+            data = data.json()
+        except Exception as e:
+            if debug_mode:
+                print("decode json failed with code: {}, error: {}".format(self.ticker, e))
+            shared._DFS[self.ticker] = utils.empty_df()
+            return shared._DFS[self.ticker]
 
         err_msg = "No data found for this date range, symbol may be delisted"
         if "chart" in data and data["chart"]["error"]:
@@ -268,6 +276,26 @@ class TickerBase():
         return df
 
     # ------------------------
+    def get_json(self, url, proxy=None):
+        # html = _requests.get(url=url, proxies=proxy).text
+        html = driver.request('GET', url, proxies=proxy).text
+
+        if "QuoteSummaryStore" not in html:
+            html = driver.request('GET', url, proxies=proxy).text
+            if "QuoteSummaryStore" not in html:
+                return {}
+
+        json_str = html.split('root.App.main =')[1].split(
+            '(this)')[0].split(';\n}')[0].strip()
+        data = _json.loads(json_str)[
+            'context']['dispatcher']['stores']['QuoteSummaryStore']
+
+        # return data
+        new_data = _json.dumps(data).replace('{}', 'null')
+        new_data = _re.sub(
+            r'\{[\'|\"]raw[\'|\"]:(.*?),(.*?)\}', r'\1', new_data)
+
+        return _json.loads(new_data)
 
     def _get_fundamentals(self, kind=None, proxy=None):
         def cleanup(data):
@@ -303,36 +331,36 @@ class TickerBase():
         data = utils.get_json(ticker_url, proxy)
 
         # holders
-        holders = _pd.read_html(ticker_url+'/holders')
+        holders = _pd.read_html(ticker_url + '/holders')
 
-        if len(holders)>=3:
+        if len(holders) >= 3:
             self._major_holders = holders[0]
             self._institutional_holders = holders[1]
             self._mutualfund_holders = holders[2]
-        elif len(holders)>=2:
+        elif len(holders) >= 2:
             self._major_holders = holders[0]
             self._institutional_holders = holders[1]
         else:
             self._major_holders = holders[0]
 
-        #self._major_holders = holders[0]
-        #self._institutional_holders = holders[1]
+        # self._major_holders = holders[0]
+        # self._institutional_holders = holders[1]
 
         if self._institutional_holders is not None:
             if 'Date Reported' in self._institutional_holders:
                 self._institutional_holders['Date Reported'] = _pd.to_datetime(
-                self._institutional_holders['Date Reported'])
+                    self._institutional_holders['Date Reported'])
             if '% Out' in self._institutional_holders:
                 self._institutional_holders['% Out'] = self._institutional_holders[
-                '% Out'].str.replace('%', '').astype(float)/100
+                    '% Out'].str.replace('%', '').astype(float) / 100
 
         if self._mutualfund_holders is not None:
             if 'Date Reported' in self._mutualfund_holders:
                 self._mutualfund_holders['Date Reported'] = _pd.to_datetime(
-                self._mutualfund_holders['Date Reported'])
+                    self._mutualfund_holders['Date Reported'])
             if '% Out' in self._mutualfund_holders:
                 self._mutualfund_holders['% Out'] = self._mutualfund_holders[
-                '% Out'].str.replace('%', '').astype(float)/100
+                    '% Out'].str.replace('%', '').astype(float) / 100
 
         # sustainability
         d = {}
@@ -394,7 +422,7 @@ class TickerBase():
             pass
 
         # get fundamentals
-        data = utils.get_json(ticker_url+'/financials', proxy)
+        data = utils.get_json(ticker_url + '/financials', proxy)
 
         # generic patterns
         for key in (
@@ -407,7 +435,7 @@ class TickerBase():
             if isinstance(data.get(item), dict):
                 key[0]['yearly'] = cleanup(data[item][key[2]])
 
-            item = key[1]+'HistoryQuarterly'
+            item = key[1] + 'HistoryQuarterly'
             if isinstance(data.get(item), dict):
                 key[0]['quarterly'] = cleanup(data[item][key[2]])
 
