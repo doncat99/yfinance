@@ -309,11 +309,12 @@ class TickerBase():
                 df[col] = _np.where(
                     df[col].astype(str) == '-', _np.nan, df[col])
 
-            df.set_index('endDate', inplace=True)
-            try:
-                df.index = _pd.to_datetime(df.index, unit='s')
-            except ValueError:
-                df.index = _pd.to_datetime(df.index)
+            if 'endData' in df.columns:
+                df.set_index('endDate', inplace=True)
+                try:
+                    df.index = _pd.to_datetime(df.index, unit='s')
+                except ValueError:
+                    df.index = _pd.to_datetime(df.index)
             df = df.T
             df.columns.name = ''
             df.index.name = 'Breakdown'
@@ -391,7 +392,7 @@ class TickerBase():
             if isinstance(data.get(item), dict):
                 self._info.update(data[item])
 
-        self._info['regularMarketPrice'] = self._info['regularMarketOpen']
+        self._info['regularMarketPrice'] = self._info.get('regularMarketOpen', 0.0)
         self._info['logo_url'] = ""
         try:
             domain = self._info['website'].split(
