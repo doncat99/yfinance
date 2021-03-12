@@ -271,7 +271,10 @@ class TickerBase():
         self._history = df.copy()
 
         if not actions:
-            df.drop(columns=["Dividends", "Stock Splits"], inplace=True)
+            cols = ["Dividends", "Stock Splits"]
+            for col in cols:
+                if col in df.columns:
+                    df.drop(columns=[col], inplace=True)
 
         return df
 
@@ -299,7 +302,9 @@ class TickerBase():
 
     def _get_fundamentals(self, kind=None, proxy=None):
         def cleanup(data):
-            df = _pd.DataFrame(data).drop(columns=['maxAge'])
+            df = _pd.DataFrame(data)
+            if 'maxAge' in df.columns:
+                df.drop(columns=['maxAge'], inplace=True)
             for col in df.columns:
                 df[col] = _np.where(
                     df[col].astype(str) == '-', _np.nan, df[col])
