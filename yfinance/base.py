@@ -328,7 +328,7 @@ class TickerBase():
         ticker_url = "{}/{}".format(self._scrape_url, self.ticker)
 
         # get info and sustainability
-        data = utils.get_json(ticker_url, proxy)
+        data = self.get_json(ticker_url, proxy)
 
         # holders
         holders = _pd.read_html(ticker_url + '/holders')
@@ -422,7 +422,7 @@ class TickerBase():
             pass
 
         # get fundamentals
-        data = utils.get_json(ticker_url + '/financials', proxy)
+        data = self.get_json(ticker_url + '/financials', proxy)
 
         # generic patterns
         for key in (
